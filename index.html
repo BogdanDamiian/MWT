@@ -13,10 +13,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="MATSYA ERP">
-    <link rel="apple-touch-icon" href="./icon-192.png">
     
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="./icon-192.png">
+    <!-- Fallback icon si iconita nu există -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -24,9 +23,6 @@
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- Babel for JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
@@ -120,10 +116,20 @@
     <!-- Main App Container -->
     <div id="root"></div>
     
-    <!-- App Script -->
-    <script type="text/babel" src="./app.js"></script>
+    <!-- App Script - JAVASCRIPT PUR, PAS JSX -->
+    <script src="./app.js"></script>
     
     <script>
+        // Hide loading screen when app loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.style.display = 'none';
+                }
+            }, 1000);
+        });
+
         // PWA Installation
         let deferredPrompt;
         const installPrompt = document.getElementById('install-prompt');
@@ -133,39 +139,43 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            installPrompt.style.display = 'block';
+            if (installPrompt) installPrompt.style.display = 'block';
         });
         
-        installButton.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    console.log('PWA installed');
+        if (installButton) {
+            installButton.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        console.log('PWA installed');
+                    }
+                    deferredPrompt = null;
+                    installPrompt.style.display = 'none';
                 }
-                deferredPrompt = null;
-                installPrompt.style.display = 'none';
-            }
-        });
+            });
+        }
         
-        dismissInstall.addEventListener('click', () => {
-            installPrompt.style.display = 'none';
-            localStorage.setItem('install-dismissed', 'true');
-        });
+        if (dismissInstall) {
+            dismissInstall.addEventListener('click', () => {
+                installPrompt.style.display = 'none';
+                localStorage.setItem('install-dismissed', 'true');
+            });
+        }
         
         if (localStorage.getItem('install-dismissed')) {
-            installPrompt.style.display = 'none';
+            if (installPrompt) installPrompt.style.display = 'none';
         }
         
         // Offline/Online status
         const offlineIndicator = document.getElementById('offline-indicator');
         
         window.addEventListener('online', () => {
-            offlineIndicator.style.display = 'none';
+            if (offlineIndicator) offlineIndicator.style.display = 'none';
         });
         
         window.addEventListener('offline', () => {
-            offlineIndicator.style.display = 'block';
+            if (offlineIndicator) offlineIndicator.style.display = 'block';
         });
         
         // Register Service Worker
@@ -181,35 +191,30 @@
             });
         }
         
-        // Hide loading screen when React app loads
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const loadingScreen = document.getElementById('loading-screen');
-                if (loadingScreen) {
-                    loadingScreen.style.display = 'none';
-                }
-            }, 1000);
-        });
-        
         // Backup/Restore functionality
         window.exportData = () => {
-            const data = {
-                components: JSON.parse(localStorage.getItem('matsya-components') || '[]'),
-                movements: JSON.parse(localStorage.getItem('matsya-movements') || '[]'),
-                suppliers: JSON.parse(localStorage.getItem('matsya-suppliers') || '[]'),
-                exportDate: new Date().toISOString(),
-                version: '2.0'
-            };
-            
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `matsya-erp-backup-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            try {
+                const data = {
+                    components: JSON.parse(localStorage.getItem('matsya-components') || '[]'),
+                    movements: JSON.parse(localStorage.getItem('matsya-movements') || '[]'),
+                    suppliers: JSON.parse(localStorage.getItem('matsya-suppliers') || '[]'),
+                    exportDate: new Date().toISOString(),
+                    version: '2.0'
+                };
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `matsya-erp-backup-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Export failed:', error);
+                alert('Erreur lors de l\'export');
+            }
         };
         
         window.importData = (event) => {
@@ -231,6 +236,15 @@
                 reader.readAsText(file);
             }
         };
+        
+        // Error handling
+        window.addEventListener('error', (e) => {
+            console.error('Global error:', e.error);
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('Unhandled promise rejection:', e.reason);
+        });
     </script>
 </body>
 </html>
